@@ -130,7 +130,7 @@ func setupResolvConf(tempDir string) error {
 		return err
 	}
 
-	return os.Symlink("../proc/net/pnp", resolvConf)
+	return nil; //os.Symlink("../proc/net/pnp", resolvConf)
 }
 
 // resizeToMinimum resizes the given image to the smallest size possible

@@ -10,6 +10,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/network"
 	cont "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 	meta "github.com/weaveworks/ignite/pkg/apis/meta/v1alpha1"
@@ -110,7 +111,7 @@ func (dc *dockerClient) InspectContainer(container string) (*runtime.ContainerIn
 		ID:        res.ID,
 		Image:     res.Image,
 		Status:    res.State.Status,
-		IPAddress: net.ParseIP(res.NetworkSettings.IPAddress),
+		IPAddress: net.ParseIP(res.NetworkSettings.Networks["cni"].IPAddress),
 		PID:       uint32(res.State.Pid),
 	}, nil
 }
@@ -148,6 +149,12 @@ func (dc *dockerClient) RunContainer(image meta.OCIImageRef, config *runtime.Con
 	stopTimeout := int(config.StopTimeout)
 	bindings, exposed := portBindingsToDocker(config.PortBindings)
 
+	networkConfig := &network.NetworkingConfig{
+		EndpointsConfig: map[string]*network.EndpointSettings{},
+	}
+	networkConfig.EndpointsConfig["cni"] = &network.EndpointSettings{
+	}
+
 	c, err := dc.client.ContainerCreate(context.Background(), &container.Config{
 		Hostname:     config.Hostname,
 		ExposedPorts: exposed,
@@ -159,15 +166,19 @@ func (dc *dockerClient) RunContainer(image meta.OCIImageRef, config *runtime.Con
 		StopTimeout:  &stopTimeout,
 	}, &container.HostConfig{
 		Binds:        binds,
-		NetworkMode:  container.NetworkMode(config.NetworkMode),
+//		NetworkMode:  container.NetworkMode("bridge"), //config.NetworkMode),
 		PortBindings: bindings,
 		AutoRemove:   config.AutoRemove,
 		CapAdd:       config.CapAdds,
 		Resources: container.Resources{
 			Devices: devices,
 		},
-	}, nil, name)
+	}, networkConfig, name)
 	if err != nil {
+		return "", err
+	}
+
+	if err := dc.client.NetworkConnect(context.Background(), "cni", c.ID, nil); err != nil {
 		return "", err
 	}
 
