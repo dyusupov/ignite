@@ -3,7 +3,7 @@ FROM luxas/kernel-builder:gcc-7 AS builder
 # Install crosscompilers for non-amd64 arches
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-        binutils-multiarch \
+        binutils-multiarch bc \
         gcc-7-aarch64-linux-gnu && \
 	ln -s /usr/bin/aarch64-linux-gnu-gcc-7 /usr/bin/aarch64-linux-gnu-gcc
 
